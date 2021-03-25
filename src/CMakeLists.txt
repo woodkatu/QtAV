@@ -28,15 +28,8 @@ if(EXISTS ${QTAV_SOURCE_DIR}/contrib/capi/capi.h)
     list(APPEND EXTRA_DEFS -DQTAV_HAVE_CAPI=1)
 endif()
 
-find_package(FFmpeg REQUIRED 
-  COMPONENTS 
-    avformat
-    avcodec
-    swscale
-    avutil
-    avfilter
-    avdevice
-    avresample)
+set(FFmpeg_USE_COMPONENTS avformat avcodec swscale avutil avfilter avdevice avresample)
+find_package(FFmpeg REQUIRED COMPONENTS ${FFmpeg_USE_COMPONENTS})
 
 list(APPEND EXTRA_DEFS -DBUILD_QTAV_LIB -D__STDC_CONSTANT_MACROS)
 
@@ -316,19 +309,9 @@ if(WIN32 OR WindowsStore OR WindowsPhone)
   set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} avcodec) # TODO: lib dir
   set(OLD_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES})
   set(CMAKE_REQUIRED_INCLUDES ${EXTRA_INCLUDE} ${CMAKE_CURRENT_SOURCE_DIR})
-  check_cxx_source_compiles("
-  #include \"directx/dxcompat.h\"
-  #include <d3d11.h>
-  extern \"C\" {
-  #include <libavcodec/d3d11va.h>
-  }
-  #include <wrl/client.h> //ComPtr is used in QtAV
-  int main() {
-    av_d3d11va_alloc_context();
-    D3D11_VIDEO_PROCESSOR_STREAM s; //used by vp
-    return 0;
-  }
-  " HAVE_D3D11)
+  try_compile(HAVE_D3D11 "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../config.tests/d3d11va/main.cpp"
+    CMAKE_FLAGS -DINCLUDE_DIRECTORIES=${FFmpeg_INCLUDE_DIRS}
+    LINK_LIBRARIES ${FFmpeg_LIBRARIES})
   set(CMAKE_REQUIRED_INCLUDES ${OLD_REQUIRED_INCLUDES})
   set(CMAKE_REQUIRED_LIBRARIES ${OLD_REQUIRED_LIBRARIES})
   if(HAVE_D3D11)
@@ -479,12 +462,12 @@ target_link_libraries(${MODULE}
   LINK_PUBLIC ${QT_LIBS} # will add include dirs, macros etc.
 )
 
-target_link_libraries(${MODULE} PRIVATE ${FFMPEG_LIBRARIES})
-target_include_directories(${MODULE} PRIVATE ${FFMPEG_INCLUDE_DIRS})
-target_compile_definitions(${MODULE} PRIVATE ${FFMPEG_DEFINITIONS})
-set(FFmpeg_USE_COMPONENTS AVFORMAT AVCODEC SWSCALE AVUTIL AVFILTER AVDEVICE AVRESAMPLE)
-foreach(FFMPEG_COMPONENTS ${FFmpeg_USE_COMPONENTS})
-  target_compile_definitions(${MODULE} PRIVATE -DQTAV_HAVE_${FFMPEG_COMPONENTS}=1)
+target_link_libraries(${MODULE} PRIVATE ${FFmpeg_LIBRARIES})
+target_include_directories(${MODULE} PRIVATE ${FFmpeg_INCLUDE_DIRS})
+target_compile_definitions(${MODULE} PRIVATE ${FFmpeg_DEFINITIONS})
+foreach(FFMPEG_COMPONENT ${FFmpeg_USE_COMPONENTS})
+  string(TOUPPER ${FFMPEG_COMPONENT} UPPER_COMPONENT)
+  target_compile_definitions(${MODULE} PRIVATE -DQTAV_HAVE_${UPPER_COMPONENT}=1)
 endforeach()
 
 set_target_properties(${MODULE} PROPERTIES
