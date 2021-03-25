@@ -69,6 +69,7 @@ Debug
 Release
 *.Debug
 *.Release
+cmake_*
 
 # Ignore temporary Python files
 python/PyQtAV.api

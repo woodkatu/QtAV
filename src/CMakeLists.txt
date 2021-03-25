@@ -12,8 +12,6 @@ INCLUDE(CheckTypeSize)
 include_directories(${QTDIR}/include) #TODO: remove. use external/include
 get_filename_component(QTDIR "${QTDIR}" ABSOLUTE)
 
-find_package(PkgConfig)
-
 list(APPEND EXTRA_INCLUDE ${QTAV_SOURCE_DIR}/external/include)
 list(APPEND EXTRA_LIBS ${CMAKE_LIBRARY_PATH_FLAG}${QTAV_SOURCE_DIR}/external/lib)
 if(APPLE)
@@ -30,57 +28,15 @@ if(EXISTS ${QTAV_SOURCE_DIR}/contrib/capi/capi.h)
     list(APPEND EXTRA_DEFS -DQTAV_HAVE_CAPI=1)
 endif()
 
-pkg_check_modules (AVFORMAT libavformat REQUIRED)
-if(${AVFORMAT_FOUND})
-    list(APPEND PKG_CONFIG_MODULES AVFORMAT)
-    message("Found AVFORMAT: ${AVFORMAT_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (AVCODEC libavcodec REQUIRED)
-if(${AVCODEC_FOUND})
-    list(APPEND PKG_CONFIG_MODULES AVCODEC)
-    message("Found AVCODEC: ${AVCODEC_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (SWSCALE libswscale REQUIRED)
-if(${SWSCALE_FOUND})
-    list(APPEND PKG_CONFIG_MODULES SWSCALE)
-    message("Found SWSCALE: ${SWSCALE_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (AVUTIL libavutil REQUIRED)
-if(${AVUTIL_FOUND})
-    list(APPEND PKG_CONFIG_MODULES AVUTIL)
-    message("Found AVUTIL: ${AVUTIL_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (AVFILTER libavfilter)
-if(${AVFILTER_FOUND})
-    list(APPEND PKG_CONFIG_MODULES AVFILTER)
-    message("Found AVFILTER: ${AVFILTER_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (AVDEVICE libavdevice)
-if(${AVDEVICE_FOUND})
-    list(APPEND PKG_CONFIG_MODULES AVDEVICE)
-    message("Found AVDEVICE: ${AVDEVICE_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (AVRESAMPLE libavresample)
-if(${AVRESAMPLE_FOUND})
-    list(APPEND PKG_CONFIG_MODULES AVRESAMPLE)
-    message("Found AVRESAMPLE: ${AVRESAMPLE_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (SWRESAMPLE libswresample)
-if(${SWRESAMPLE_FOUND})
-    list(APPEND PKG_CONFIG_MODULES SWRESAMPLE)
-    message("Found SWRESAMPLE: ${SWRESAMPLE_LINK_LIBRARIES}")
-endif()
-
-if (NOT AVRESAMPLE_FOUND AND NOT SWRESAMPLE_FOUND)
-    message(FATAL_ERROR "swresample or avresample is required")
-endif()
+find_package(FFmpeg REQUIRED 
+  COMPONENTS 
+    avformat
+    avcodec
+    swscale
+    avutil
+    avfilter
+    avdevice
+    avresample)
 
 list(APPEND EXTRA_DEFS -DBUILD_QTAV_LIB -D__STDC_CONSTANT_MACROS)
 
@@ -197,10 +153,10 @@ foreach (D ${DEP_H})
   endif()
 endforeach()
 
-if (AVRESAMPLE_FOUND)
+if (AVRESAMPLE_LIBRARIES)
   list(APPEND SOURCES AudioResamplerLibav.cpp)
 endif()
-if (SWRESAMPLE_FOUND)
+if (SWRESAMPLE_LIBRARIES)
   list(APPEND SOURCES AudioResamplerFF.cpp)
 endif()
 
@@ -211,7 +167,7 @@ set(OPENGLES 0)   #glesv2 only
 set(HAVE_OPENGL 1) # qt with opengl enabled. 1 of DYNAMIC_GL, OPENGL and OPENGLES is true
 #get_target_property(QtGui_location Qt5::Gui LOCATION) #dll path
 
-if(Qt5Gui_OPENGL_IMPLEMENTATION STREQUAL GL) # windows always set to GL
+if(Qt5OpenGL_FOUND) # windows always set to GL
   if(EXISTS ${QT_INSTALL_HEADERS}/QtANGLE)
     set(DYNAMIC_GL 1) # assume Qt5Gui_OPENGL_IMPLEMENTATION is not GL if build with ANGLE only
     if(NOT DEFINED Qt5Gui_EGL_INCLUDE_DIRS)
@@ -408,8 +364,10 @@ if(WIN32 OR WindowsStore OR WindowsPhone)
       directx/SurfaceInteropD3D9.cpp
       codec/video/VideoDecoderDXVA.cpp
     )
+    find_library(EGL_LIB NAMES libEGL EGL REQUIRED)
     if(HAVE_EGL)
       list(APPEND SOURCES directx/SurfaceInteropD3D9EGL.cpp)
+      list(APPEND EXTRA_LIBS ${EGL_LIB})
     endif()
     if(OPENGL OR DYNAMIC_GL)
       list(APPEND SOURCES directx/SurfaceInteropD3D9GL.cpp)
@@ -504,11 +462,12 @@ target_link_libraries(${MODULE}
   LINK_PUBLIC Qt5::Core Qt5::Gui # will add include dirs, macros etc.
 )
 
-foreach(PKG_CONFIG_MODULE ${PKG_CONFIG_MODULES})
-    target_link_libraries(${MODULE} PRIVATE ${${PKG_CONFIG_MODULE}_LINK_LIBRARIES})
-    target_include_directories(${MODULE} PRIVATE ${${PKG_CONFIG_MODULE}_INCLUDE_DIRS})
-    target_compile_options(${MODULE} PRIVATE ${${PKG_CONFIG_MODULE}_CFLAGS_OTHER})
-    target_compile_definitions(${MODULE} PRIVATE -DQTAV_HAVE_${PKG_CONFIG_MODULE}=1)
+target_link_libraries(${MODULE} PRIVATE ${FFMPEG_LIBRARIES})
+target_include_directories(${MODULE} PRIVATE ${FFMPEG_INCLUDE_DIRS})
+target_compile_definitions(${MODULE} PRIVATE ${FFMPEG_DEFINITIONS})
+set(FFmpeg_USE_COMPONENTS AVFORMAT AVCODEC SWSCALE AVUTIL AVFILTER AVDEVICE AVRESAMPLE)
+foreach(FFMPEG_COMPONENTS ${FFmpeg_USE_COMPONENTS})
+  target_compile_definitions(${MODULE} PRIVATE -DQTAV_HAVE_${FFMPEG_COMPONENTS}=1)
 endforeach()
 
 set_target_properties(${MODULE} PROPERTIES
