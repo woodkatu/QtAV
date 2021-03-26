@@ -417,6 +417,23 @@ if(NOT APPLE)
   )
 endif()
 
+if(ANDROID)
+  message("config for android")
+  list(APPEND EXTRA_LIBS GLESv2)
+
+  find_package(Qt5AndroidExtras)
+  if(Qt5AndroidExtras_FOUND)
+    list(APPEND QT_LIBS Qt5::AndroidExtras)
+  endif()
+
+  if(EXISTS "jmi/jmi.cpp")
+    list(APPEND SOURCES
+      jmi/jmi.cpp
+      io/AndroidIO.cpp
+      codec/video/VideoDecoderMediaCodec.cpp)
+  endif()
+endif()
+
 list(APPEND HEADERS ${SDK_HEADERS} ${SDK_PRIVATE_HEADERS}
     AVPlayerPrivate.h
     AVDemuxThread.h
@@ -459,7 +476,7 @@ list(REMOVE_DUPLICATES EXTRA_LIBS)
 # qt5_use_modules(since 2.8.9) is deprecated since cmake 2.8.11
 target_link_libraries(${MODULE} 
   LINK_PRIVATE ${EXTRA_LIBS}
-  LINK_PUBLIC Qt5::Core Qt5::Gui # will add include dirs, macros etc.
+  LINK_PUBLIC ${QT_LIBS} # will add include dirs, macros etc.
 )
 
 target_link_libraries(${MODULE} PRIVATE ${FFMPEG_LIBRARIES})

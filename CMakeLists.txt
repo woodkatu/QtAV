@@ -35,6 +35,8 @@ list(APPEND CMAKE_PREFIX_PATH ${QTDIR})
 
 find_package(Qt5Core REQUIRED)
 find_package(Qt5Gui REQUIRED)
+set(QT_LIBS Qt5::Core Qt5::Gui)
+
 set(HAVE_QT5OPENGL 0)
 if(BUILD_QT5OPENGL)
   find_package(Qt5OpenGL)
