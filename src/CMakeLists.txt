@@ -401,14 +401,12 @@ if(NOT APPLE)
 endif()
 
 if(ANDROID)
-  message("config for android")
   list(APPEND EXTRA_LIBS GLESv2 log)
 
   find_package(Qt5AndroidExtras)
   if(Qt5AndroidExtras_FOUND)
     list(APPEND QT_LIBS Qt5::AndroidExtras)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/jmi/jmi.cpp")
-      message("================")
       list(APPEND SOURCES
         jmi/jmi.cpp
         io/AndroidIO.cpp

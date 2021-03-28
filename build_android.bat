@@ -15,5 +15,4 @@ cmake -S . -B cmake_android -GNinja ^
 -DQTDIR="D:/Qt5/5.15.2/android" ^
 -DFFMPEGDIR="G:/Avbuild/sdk-android-armv7-clang"
 
-@REM cmake --build ./cmake_android %1
-cmake --build ./cmake_android --target QtAV
+cmake --build ./cmake_android %1
