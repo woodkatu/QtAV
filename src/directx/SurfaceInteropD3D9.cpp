@@ -63,8 +63,12 @@ bool InteropResource::isSupported(InteropType type)
     return false;
 }
 
+#if QTAV_HAVE(D3D9_EGL)
 extern InteropResource* CreateInteropEGL(IDirect3DDevice9 *dev);
+#endif
+#if QTAV_HAVE(D3D9_GL)
 extern InteropResource* CreateInteropGL(IDirect3DDevice9 *dev);
+#endif
 InteropResource* InteropResource::create(IDirect3DDevice9 *dev, InteropType type)
 {
     Q_UNUSED(dev);

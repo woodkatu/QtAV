@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.11 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 project(QTAV)
 
@@ -20,6 +20,9 @@ endif()
 set(CMAKE_CXX_VISIBILITY_PRESET hidden) #use with -fdata-sections -ffunction-sections to reduce target size
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
+if(MSVC)
+  add_compile_options(/utf-8)
+endif()
 
 option(BUILD_EXAMPLES "Build examples" ON)
 option(BUILD_PLAYERS "Build players" ON)
@@ -27,10 +30,21 @@ option(BUILD_TESTS "Build tests" ON)
 option(BUILD_QT5OPENGL "Build with Qt5 OpenGL module" ON)
 option(BUILD_QML "Build QML interfaces" ON)
 
-list(APPEND CMAKE_FIND_ROOT_PATH ${QTDIR})
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
+list(APPEND CMAKE_PREFIX_PATH ${QTDIR})
 
 find_package(Qt5Core REQUIRED)
 find_package(Qt5Gui REQUIRED)
+set(QT_LIBS Qt5::Core Qt5::Gui)
+
+set(HAVE_QT5OPENGL 0)
+if(BUILD_QT5OPENGL)
+  find_package(Qt5OpenGL)
+  if(Qt5OpenGL_FOUND)
+    set(HAVE_QT5OPENGL 1)
+  endif()
+endif()
+
 get_target_property(qmake Qt5::qmake LOCATION)
 execute_process(
     COMMAND ${qmake} -query QT_INSTALL_HEADERS

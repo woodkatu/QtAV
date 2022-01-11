@@ -96,12 +96,16 @@ set_source_files_properties(${PLAYER_RES} PROPERTIES GENERATED ON)
 
 if(Qt5Quick_FOUND)
   set(QMLPLAYER_QRC QMLPlayer/qmlplayer.qrc)
+  set(QMLPLAYER_LINK_LIBS Qt5::Quick common)
   qt5_add_resources(QMLPLAYER_RES ${QMLPLAYER_QRC})
   set_source_files_properties(${QMLPLAYER_RES} PROPERTIES GENERATED ON)
   set(MODULE QMLPlayer)
   if(WIN32)
     set(RC_FILE ${CMAKE_CURRENT_BINARY_DIR}/${MODULE}.rc)
     configure_file(${QTAV_SOURCE_DIR}/cmake/QtAV.rc.in ${RC_FILE})
+  elseif(ANDROID)
+    find_package(Qt5AndroidExtras REQUIRED)
+    list(APPEND QMLPLAYER_LINK_LIBS Qt5::AndroidExtras)
   endif()
   add_executable(QMLPlayer ${EXE_TYPE}
       QMLPlayer/main.cpp
@@ -111,7 +115,7 @@ if(Qt5Quick_FOUND)
       ${RC_FILE}
       )
   target_include_directories(QMLPlayer PRIVATE QMLPlayer/qtquick2applicationviewer)
-  target_link_libraries(QMLPlayer Qt5::Quick common)
+  target_link_libraries(QMLPlayer PRIVATE ${QMLPLAYER_LINK_LIBS})
   install(TARGETS QMLPlayer
     RUNTIME DESTINATION ${QTAV_INSTALL_BINS}
   )

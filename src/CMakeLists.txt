@@ -12,8 +12,6 @@ INCLUDE(CheckTypeSize)
 include_directories(${QTDIR}/include) #TODO: remove. use external/include
 get_filename_component(QTDIR "${QTDIR}" ABSOLUTE)
 
-find_package(PkgConfig)
-
 list(APPEND EXTRA_INCLUDE ${QTAV_SOURCE_DIR}/external/include)
 list(APPEND EXTRA_LIBS ${CMAKE_LIBRARY_PATH_FLAG}${QTAV_SOURCE_DIR}/external/lib)
 if(APPLE)
@@ -30,57 +28,8 @@ if(EXISTS ${QTAV_SOURCE_DIR}/contrib/capi/capi.h)
     list(APPEND EXTRA_DEFS -DQTAV_HAVE_CAPI=1)
 endif()
 
-pkg_check_modules (AVFORMAT libavformat REQUIRED)
-if(${AVFORMAT_FOUND})
-    list(APPEND PKG_CONFIG_MODULES AVFORMAT)
-    message("Found AVFORMAT: ${AVFORMAT_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (AVCODEC libavcodec REQUIRED)
-if(${AVCODEC_FOUND})
-    list(APPEND PKG_CONFIG_MODULES AVCODEC)
-    message("Found AVCODEC: ${AVCODEC_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (SWSCALE libswscale REQUIRED)
-if(${SWSCALE_FOUND})
-    list(APPEND PKG_CONFIG_MODULES SWSCALE)
-    message("Found SWSCALE: ${SWSCALE_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (AVUTIL libavutil REQUIRED)
-if(${AVUTIL_FOUND})
-    list(APPEND PKG_CONFIG_MODULES AVUTIL)
-    message("Found AVUTIL: ${AVUTIL_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (AVFILTER libavfilter)
-if(${AVFILTER_FOUND})
-    list(APPEND PKG_CONFIG_MODULES AVFILTER)
-    message("Found AVFILTER: ${AVFILTER_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (AVDEVICE libavdevice)
-if(${AVDEVICE_FOUND})
-    list(APPEND PKG_CONFIG_MODULES AVDEVICE)
-    message("Found AVDEVICE: ${AVDEVICE_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (AVRESAMPLE libavresample)
-if(${AVRESAMPLE_FOUND})
-    list(APPEND PKG_CONFIG_MODULES AVRESAMPLE)
-    message("Found AVRESAMPLE: ${AVRESAMPLE_LINK_LIBRARIES}")
-endif()
-
-pkg_check_modules (SWRESAMPLE libswresample)
-if(${SWRESAMPLE_FOUND})
-    list(APPEND PKG_CONFIG_MODULES SWRESAMPLE)
-    message("Found SWRESAMPLE: ${SWRESAMPLE_LINK_LIBRARIES}")
-endif()
-
-if (NOT AVRESAMPLE_FOUND AND NOT SWRESAMPLE_FOUND)
-    message(FATAL_ERROR "swresample or avresample is required")
-endif()
+set(FFmpeg_USE_COMPONENTS avformat avcodec swscale avutil avfilter avdevice avresample)
+find_package(FFmpeg REQUIRED COMPONENTS ${FFmpeg_USE_COMPONENTS})
 
 list(APPEND EXTRA_DEFS -DBUILD_QTAV_LIB -D__STDC_CONSTANT_MACROS)
 
@@ -211,7 +160,7 @@ set(OPENGLES 0)   #glesv2 only
 set(HAVE_OPENGL 1) # qt with opengl enabled. 1 of DYNAMIC_GL, OPENGL and OPENGLES is true
 #get_target_property(QtGui_location Qt5::Gui LOCATION) #dll path
 
-if(Qt5Gui_OPENGL_IMPLEMENTATION STREQUAL GL) # windows always set to GL
+if(Qt5OpenGL_FOUND) # windows always set to GL
   if(EXISTS ${QT_INSTALL_HEADERS}/QtANGLE)
     set(DYNAMIC_GL 1) # assume Qt5Gui_OPENGL_IMPLEMENTATION is not GL if build with ANGLE only
     if(NOT DEFINED Qt5Gui_EGL_INCLUDE_DIRS)
@@ -360,19 +309,9 @@ if(WIN32 OR WindowsStore OR WindowsPhone)
   set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} avcodec) # TODO: lib dir
   set(OLD_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES})
   set(CMAKE_REQUIRED_INCLUDES ${EXTRA_INCLUDE} ${CMAKE_CURRENT_SOURCE_DIR})
-  check_cxx_source_compiles("
-  #include \"directx/dxcompat.h\"
-  #include <d3d11.h>
-  extern \"C\" {
-  #include <libavcodec/d3d11va.h>
-  }
-  #include <wrl/client.h> //ComPtr is used in QtAV
-  int main() {
-    av_d3d11va_alloc_context();
-    D3D11_VIDEO_PROCESSOR_STREAM s; //used by vp
-    return 0;
-  }
-  " HAVE_D3D11)
+  try_compile(HAVE_D3D11 "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../config.tests/d3d11va/main.cpp"
+    CMAKE_FLAGS -DINCLUDE_DIRECTORIES=${FFmpeg_INCLUDE_DIRS}
+    LINK_LIBRARIES ${FFmpeg_LIBRARIES})
   set(CMAKE_REQUIRED_INCLUDES ${OLD_REQUIRED_INCLUDES})
   set(CMAKE_REQUIRED_LIBRARIES ${OLD_REQUIRED_LIBRARIES})
   if(HAVE_D3D11)
@@ -408,8 +347,10 @@ if(WIN32 OR WindowsStore OR WindowsPhone)
       directx/SurfaceInteropD3D9.cpp
       codec/video/VideoDecoderDXVA.cpp
     )
+    find_library(EGL_LIB NAMES libEGL EGL REQUIRED)
     if(HAVE_EGL)
       list(APPEND SOURCES directx/SurfaceInteropD3D9EGL.cpp)
+      list(APPEND EXTRA_LIBS ${EGL_LIB})
     endif()
     if(OPENGL OR DYNAMIC_GL)
       list(APPEND SOURCES directx/SurfaceInteropD3D9GL.cpp)
@@ -459,6 +400,21 @@ if(NOT APPLE)
   )
 endif()
 
+if(ANDROID)
+  list(APPEND EXTRA_LIBS GLESv2 log)
+
+  find_package(Qt5AndroidExtras)
+  if(Qt5AndroidExtras_FOUND)
+    list(APPEND QT_LIBS Qt5::AndroidExtras)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/jmi/jmi.cpp")
+      list(APPEND SOURCES
+        jmi/jmi.cpp
+        io/AndroidIO.cpp
+        codec/video/VideoDecoderMediaCodec.cpp)
+    endif()
+  endif()
+endif()
+
 list(APPEND HEADERS ${SDK_HEADERS} ${SDK_PRIVATE_HEADERS}
     AVPlayerPrivate.h
     AVDemuxThread.h
@@ -501,14 +457,15 @@ list(REMOVE_DUPLICATES EXTRA_LIBS)
 # qt5_use_modules(since 2.8.9) is deprecated since cmake 2.8.11
 target_link_libraries(${MODULE} 
   LINK_PRIVATE ${EXTRA_LIBS}
-  LINK_PUBLIC Qt5::Core Qt5::Gui # will add include dirs, macros etc.
+  LINK_PUBLIC ${QT_LIBS} # will add include dirs, macros etc.
 )
 
-foreach(PKG_CONFIG_MODULE ${PKG_CONFIG_MODULES})
-    target_link_libraries(${MODULE} PRIVATE ${${PKG_CONFIG_MODULE}_LINK_LIBRARIES})
-    target_include_directories(${MODULE} PRIVATE ${${PKG_CONFIG_MODULE}_INCLUDE_DIRS})
-    target_compile_options(${MODULE} PRIVATE ${${PKG_CONFIG_MODULE}_CFLAGS_OTHER})
-    target_compile_definitions(${MODULE} PRIVATE -DQTAV_HAVE_${PKG_CONFIG_MODULE}=1)
+target_link_libraries(${MODULE} PRIVATE ${FFmpeg_LIBRARIES})
+target_include_directories(${MODULE} PRIVATE ${FFmpeg_INCLUDE_DIRS})
+target_compile_definitions(${MODULE} PRIVATE ${FFmpeg_DEFINITIONS})
+foreach(FFMPEG_COMPONENT ${FFmpeg_USE_COMPONENTS})
+  string(TOUPPER ${FFMPEG_COMPONENT} UPPER_COMPONENT)
+  target_compile_definitions(${MODULE} PRIVATE -DQTAV_HAVE_${UPPER_COMPONENT}=1)
 endforeach()
 
 set_target_properties(${MODULE} PROPERTIES

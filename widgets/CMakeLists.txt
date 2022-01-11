@@ -2,14 +2,6 @@ set(MODULE QtAVWidgets)
 set(EXTRA_DEFS -DBUILD_QTAVWIDGETS_LIB)
 list(APPEND EXTRA_DEFS -DQTAV_HAVE_GL=1)
 
-set(HAVE_QT5OPENGL 0)
-if(BUILD_QT5OPENGL)
-  find_package(Qt5OpenGL)
-  if(Qt5OpenGL_FOUND)
-    set(HAVE_QT5OPENGL 1)
-  endif()
-endif()
-
 set(SDK_HEADERS
   QtAVWidgets/global.h
   QtAVWidgets/GraphicsItemRenderer.h
