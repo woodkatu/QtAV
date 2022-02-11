@@ -28,7 +28,7 @@ if(EXISTS ${QTAV_SOURCE_DIR}/contrib/capi/capi.h)
     list(APPEND EXTRA_DEFS -DQTAV_HAVE_CAPI=1)
 endif()
 
-set(FFmpeg_USE_COMPONENTS avformat avcodec swscale avutil avfilter avdevice avresample)
+set(FFmpeg_USE_COMPONENTS avformat avcodec swscale avutil avfilter avdevice)
 find_package(FFmpeg REQUIRED COMPONENTS ${FFmpeg_USE_COMPONENTS})
 
 list(APPEND EXTRA_DEFS -DBUILD_QTAV_LIB -D__STDC_CONSTANT_MACROS)
@@ -403,7 +403,7 @@ endif()
 if(ANDROID)
   list(APPEND EXTRA_LIBS GLESv2 log)
 
-  find_package(Qt5AndroidExtras)
+  find_package(Qt5 REQUIRED COMPONENTS AndroidExtras)
   if(Qt5AndroidExtras_FOUND)
     list(APPEND QT_LIBS Qt5::AndroidExtras)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/jmi/jmi.cpp")
