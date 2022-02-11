@@ -347,7 +347,7 @@ if(WIN32 OR WindowsStore OR WindowsPhone)
       directx/SurfaceInteropD3D9.cpp
       codec/video/VideoDecoderDXVA.cpp
     )
-    find_library(EGL_LIB NAMES libEGL EGL REQUIRED)
+    find_library(EGL_LIB NAMES libEGL EGL REQUIRED PATHS ${QT_INSTALL_LIBS})
     if(HAVE_EGL)
       list(APPEND SOURCES directx/SurfaceInteropD3D9EGL.cpp)
       list(APPEND EXTRA_LIBS ${EGL_LIB})
